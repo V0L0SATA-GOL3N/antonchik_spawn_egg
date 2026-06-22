@@ -1,0 +1,58 @@
+# Blender 5.1.0 MTL File: 'None'
+# www.blender.org
+
+newmtl Bodymat
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Remy_Body_Diffuse.png
+map_Ns Remy_Body_Gloss.png
+map_Bump Remy_Body_Normal.png
+
+newmtl Bottommat
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Remy_Bottom_Diffuse.png
+map_Ns Remy_Bottom_Gloss.png
+map_Bump Remy_Bottom_Normal.png
+
+newmtl Material.001
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd texture_pbr_20250901.png
+map_Ns texture_pbr_20250901_roughness.png
+map_refl texture_pbr_20250901_metallic.png
+map_Bump -bm 1.000000 texture_pbr_20250901_normal.png
+
+newmtl Shoesmat
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Remy_Shoes_Diffuse.png
+map_Ns Remy_Shoes_Gloss.png
+map_Bump Remy_Shoes_Normal.png
+
+newmtl Topmat
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Remy_Top_Diffuse.png
+map_Ns Remy_Top_Gloss.png
+map_Bump Remy_Top_Normal.png
