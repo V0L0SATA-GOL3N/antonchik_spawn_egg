@@ -2,8 +2,9 @@ package com.example.antonchik.entity.render;
 
 import com.example.antonchik.Antonchik;
 import com.example.antonchik.entity.EntityAntonMob;
+import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.entity.Render;
+import net.minecraft.client.renderer.entity.RenderLiving;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
@@ -14,8 +15,11 @@ import java.io.IOException;
 /**
  * Renders {@link EntityAntonMob} from a custom Wavefront OBJ ({@link ObjModel}), binding the
  * per-material diffuse texture declared in the model's {@code .mtl} ({@link MtlLib}).
+ *
+ * <p>Extends {@link RenderLiving} (with an empty vanilla model) purely so the engine still draws
+ * the lead/leash rope and nameplate; the actual body is our OBJ, rendered in {@link #doRender}.
  */
-public class RenderAntonMob extends Render<EntityAntonMob>
+public class RenderAntonMob extends RenderLiving<EntityAntonMob>
 {
     private static final ResourceLocation MODEL =
         new ResourceLocation(Antonchik.MODID, "models/entity/antonchik.obj");
@@ -29,9 +33,9 @@ public class RenderAntonMob extends Render<EntityAntonMob>
 
     /**
      * Uniform scale applied to the model. The source OBJ is ~5.97 units tall with its base at
-     * y=0, so 1.8 / 5.97 ≈ 0.30 fits the entity's 1.8-high bounding box. Tweak to taste.
+     * y=0, so 3.6 / 5.97 ≈ 0.60 fits the entity's (doubled) 3.6-high bounding box. Tweak to taste.
      */
-    private static final float MODEL_SCALE = 0.30F;
+    private static final float MODEL_SCALE = 0.60F;
 
     private ObjModel model;
     private MtlLib materials;
@@ -39,42 +43,46 @@ public class RenderAntonMob extends Render<EntityAntonMob>
 
     public RenderAntonMob(RenderManager manager)
     {
-        super(manager);
+        super(manager, new EmptyModel(), 0.8F);
     }
 
     @Override
     public void doRender(EntityAntonMob entity, double x, double y, double z, float entityYaw, float partialTicks)
     {
-        if (!ensureLoaded())
+        if (ensureLoaded())
         {
-            return;
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(x, y, z);
+
+            // Face the model in the entity's body direction (this model is authored facing north/-Z).
+            float bodyYaw = interpolateRotation(entity.prevRenderYawOffset, entity.renderYawOffset, partialTicks);
+            GlStateManager.rotate(-bodyYaw, 0.0F, 1.0F, 0.0F);
+
+            applyWalkAnimation(entity, partialTicks);
+
+            GlStateManager.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+
+            GlStateManager.enableRescaleNormal();
+            GlStateManager.enableTexture2D();
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            // OBJ exports often have inconsistent winding; draw both sides so nothing is culled away.
+            GlStateManager.disableCull();
+
+            model.render(this::bindMaterial);
+
+            GlStateManager.enableCull();
+            GlStateManager.disableRescaleNormal();
+
+            GlStateManager.popMatrix();
         }
 
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(x, y, z);
-
-        // Face the model in the entity's body direction (this model is authored facing north/-Z).
-        float bodyYaw = interpolateRotation(entity.prevRenderYawOffset, entity.renderYawOffset, partialTicks);
-        GlStateManager.rotate(-bodyYaw, 0.0F, 1.0F, 0.0F);
-
-        applyWalkAnimation(entity, partialTicks);
-
-        GlStateManager.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
-
-        GlStateManager.enableRescaleNormal();
-        GlStateManager.enableTexture2D();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        // OBJ exports often have inconsistent winding; draw both sides so nothing is culled away.
-        GlStateManager.disableCull();
-
-        model.render(this::bindMaterial);
-
-        GlStateManager.enableCull();
-        GlStateManager.disableRescaleNormal();
-
-        GlStateManager.popMatrix();
-
+        // Empty vanilla model renders nothing, but RenderLiving still draws the lead rope + nameplate.
         super.doRender(entity, x, y, z, entityYaw, partialTicks);
+    }
+
+    /** Invisible stand-in model so {@link RenderLiving} can draw the leash/nameplate around our OBJ. */
+    private static class EmptyModel extends ModelBase
+    {
     }
 
     /**
@@ -129,12 +137,6 @@ public class RenderAntonMob extends Render<EntityAntonMob>
             System.err.println("[Antonchik] Failed to load entity OBJ model: " + e.getMessage());
             return false;
         }
-    }
-
-    private static float interpolateRotation(float prev, float current, float partialTicks)
-    {
-        float delta = MathHelper.wrapDegrees(current - prev);
-        return prev + partialTicks * delta;
     }
 
     @Nullable
