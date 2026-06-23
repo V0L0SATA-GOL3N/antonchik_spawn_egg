@@ -1,5 +1,6 @@
 package com.example.antonchik.entity;
 
+import com.example.antonchik.init.ModItems;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -9,23 +10,26 @@ import net.minecraft.entity.ai.EntityAISwimming;
 import net.minecraft.entity.ai.EntityAIWander;
 import net.minecraft.entity.ai.EntityAIWatchClosest;
 import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
+import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Items;
-import net.minecraft.init.PotionTypes;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.potion.PotionUtils;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.EnumDifficulty;
+import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 
 public class EntityAntonMob extends EntityCreature
 {
-    /** True once the mob has been fed a water bottle: it stops being hostile and can be leashed. */
+    /** True once the mob has been fed a Jameson: it stops being hostile and can be leashed. */
     private static final DataParameter<Boolean> FED =
         EntityDataManager.createKey(EntityAntonMob.class, DataSerializers.BOOLEAN);
 
@@ -65,6 +69,11 @@ public class EntityAntonMob extends EntityCreature
         // Hostile to players only while not yet fed.
         targetTasks.addTask(1, new EntityAINearestAttackableTarget<EntityPlayer>(
             this, EntityPlayer.class, 10, true, false, player -> !isFed()));
+
+        // Once fed (tamed), defend players by attacking any hostile mob that is targeting one.
+        targetTasks.addTask(2, new EntityAINearestAttackableTarget<EntityMob>(
+            this, EntityMob.class, 10, true, false,
+            mob -> isFed() && mob.getAttackTarget() instanceof EntityPlayer));
     }
 
     @Override
@@ -75,6 +84,75 @@ public class EntityAntonMob extends EntityCreature
         getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(10.0D);
         getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.25D);
         getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(3.0D);
+    }
+
+    @Override
+    public void onLivingUpdate()
+    {
+        super.onLivingUpdate();
+
+        // Once fed, slowly regenerate health (1 HP every 2 seconds) until full.
+        if (!world.isRemote && isFed() && isEntityAlive()
+            && getHealth() < getMaxHealth() && ticksExisted % 40 == 0)
+        {
+            heal(1.0F);
+        }
+    }
+
+    /** Burst of hearts shown to all nearby clients when the mob is fed. */
+    private void spawnFeedParticles()
+    {
+        if (!(world instanceof WorldServer))
+        {
+            return;
+        }
+
+        WorldServer server = (WorldServer) world;
+        for (int i = 0; i < 7; i++)
+        {
+            double dx = rand.nextGaussian() * 0.02D;
+            double dy = rand.nextGaussian() * 0.02D;
+            double dz = rand.nextGaussian() * 0.02D;
+            server.spawnParticle(EnumParticleTypes.HEART,
+                posX + (rand.nextFloat() * width * 2.0F) - width,
+                posY + 0.5D + (rand.nextFloat() * height),
+                posZ + (rand.nextFloat() * width * 2.0F) - width,
+                1, dx, dy, dz, 0.0D);
+        }
+    }
+
+    /**
+     * Spawn like a hostile mob (creeper-style): only in the dark and not on peaceful, instead of
+     * the unconditional animal-style spawning of {@link EntityCreature}.
+     */
+    @Override
+    public boolean getCanSpawnHere()
+    {
+        return world.getDifficulty() != EnumDifficulty.PEACEFUL
+            && isValidLightLevel()
+            && super.getCanSpawnHere();
+    }
+
+    /** Mirrors EntityMob: requires low light at the spawn position. */
+    protected boolean isValidLightLevel()
+    {
+        BlockPos pos = new BlockPos(posX, getEntityBoundingBox().minY, posZ);
+
+        if (world.getLightFor(EnumSkyBlock.SKY, pos) > rand.nextInt(32))
+        {
+            return false;
+        }
+
+        int light = world.getLightFromNeighbors(pos);
+        if (world.isThundering())
+        {
+            int prev = world.getSkylightSubtracted();
+            world.setSkylightSubtracted(10);
+            light = world.getLightFromNeighbors(pos);
+            world.setSkylightSubtracted(prev);
+        }
+
+        return light <= rand.nextInt(8);
     }
 
     @Override
@@ -89,27 +167,18 @@ public class EntityAntonMob extends EntityCreature
     {
         ItemStack stack = player.getHeldItem(hand);
 
-        if (!isFed() && stack.getItem() == Items.POTIONITEM
-            && PotionUtils.getPotionFromItem(stack) == PotionTypes.WATER)
+        if (!isFed() && stack.getItem() == ModItems.JAMESON)
         {
             if (!world.isRemote)
             {
                 setFed(true);
                 setAttackTarget(null);
                 playSound(SoundEvents.ENTITY_GENERIC_DRINK, 1.0F, 1.0F);
+                spawnFeedParticles();
 
                 if (!player.capabilities.isCreativeMode)
                 {
                     stack.shrink(1);
-                    ItemStack empty = new ItemStack(Items.GLASS_BOTTLE);
-                    if (stack.isEmpty())
-                    {
-                        player.setHeldItem(hand, empty);
-                    }
-                    else if (!player.inventory.addItemStackToInventory(empty))
-                    {
-                        player.dropItem(empty, false);
-                    }
                 }
             }
             return true;

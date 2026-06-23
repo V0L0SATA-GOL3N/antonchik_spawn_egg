@@ -1,3 +1,6 @@
 item.antonchik.anton_spawn_egg.name=Antonchik
+item.antonchik.jameson.name=Jameson
+effect.antonchik.drunk=Drunk
+death.attack.too_drunk=%1$s was too drunk
 entity.antonchik.antonchik.name=Antonchik
 entity.antonchik.name=Antonchik
