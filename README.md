@@ -49,4 +49,4 @@ This is a ForgeGradle project for 1.12.2, which runs on **Gradle 5.6.4 / Java 8*
 
 ## License & credits
 
-A personal/learning project. Minecraft and Forge are the property of their respective owners.
+A personal/learning project. Minecraft and Forge are the property of their respective owners. Other content described in LICENSE
