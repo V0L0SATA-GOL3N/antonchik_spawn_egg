@@ -81,9 +81,9 @@ public class EntityAntonMob extends EntityCreature
     {
         super.applyEntityAttributes();
         getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(10.0D);
+        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(20.0D);
         getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.25D);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(3.0D);
+        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(3.5D);
     }
 
     @Override
@@ -167,12 +167,23 @@ public class EntityAntonMob extends EntityCreature
     {
         ItemStack stack = player.getHeldItem(hand);
 
-        if (!isFed() && stack.getItem() == ModItems.JAMESON)
+        if (stack.getItem() == ModItems.JAMESON)
         {
-            if (!world.isRemote)
+            boolean canPacify = !isFed();
+            boolean canHeal = getHealth() < getMaxHealth();
+
+            // Treating with Jameson pacifies the mob (first time) and fully heals it (every time).
+            // Only spend a bottle when there is something to do, so it is never wasted on a fed,
+            // full-health mob -- but always consume the interaction (return true) regardless, so
+            // right-clicking the mob never falls through to the player drinking the Jameson.
+            if ((canPacify || canHeal) && !world.isRemote)
             {
-                setFed(true);
-                setAttackTarget(null);
+                if (canPacify)
+                {
+                    setFed(true);
+                    setAttackTarget(null);
+                }
+                setHealth(getMaxHealth());
                 playSound(SoundEvents.ENTITY_GENERIC_DRINK, 1.0F, 1.0F);
                 spawnFeedParticles();
 
